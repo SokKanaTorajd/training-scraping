@@ -58,7 +58,7 @@ for i in range(2, max_result_page+1):
             product_url = result.find_element(by=By.XPATH, value=xpath_url).get_attribute('href')
 
         except NoSuchElementException:
-            product_url = ''
+            product_url = None
         
         data.append(product_url)
     
@@ -74,3 +74,5 @@ df = pd.DataFrame(data, columns=['url'])
 
 # save to csv file
 df.to_csv(f'scrape-bhinneka-sarung-url.csv', index=False)
+
+driver.close()
