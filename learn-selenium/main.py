@@ -1,83 +1,76 @@
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import ElementClickInterceptedException, NoSuchElementException
+import pandas as pd
 
 options = Options()
-options.add_experimental_option("detach", True)
+
+# # option for display the browser
+# options.add_experimental_option("detach", True)
+
+# options for making the browser headless
+options.add_argument("--headless")
+options.add_argument("--disable-dev-shm-usage")
+options.add_argument("--no-sandbox")
+
 driver = Chrome(executable_path='/d/Sadasa Academy/training-scraping/learn-selenium/chromedriver.exe', options=options)
 
-# driver.get('https://facebook.com')
-# driver.implicitly_wait(10)
+# scrape sarung in bhinneka.com
+keyword = 'sarung'
+base_url = 'https://www.bhinneka.com/jual?cari='
+url = base_url+keyword
+page_param = '&page='
 
-# # get email element
-# email_box = driver.find_element(by=By.XPATH, value='//*[@id="email"]')
-# email_box.send_keys("wijatama@gmail.com")
-
-# # get password element
-# password_box = driver.find_element(by=By.XPATH, value='//*[@id="pass"]')
-# password_box.send_keys("password123")
-
-# # click button login
-# login_button = driver.find_element(by=By.XPATH, value='/html/body/div[1]/div[1]/div[1]/div/div/div/div[2]/div/div[1]/form/div[2]/button')
-# login_button.click()
-
-# scrape youtube comments
-
-# driver.get('https://www.youtube.com/watch?v=6-aVQl69DAg')
-# driver.implicitly_wait(10)
-
-# driver.execute_script("window.scrollTo(0, 1080)")
-
-driver.get('https://www.bhinneka.com/')
+driver.get(url)
 driver.implicitly_wait(10)
 
-# close pop up
+
+# close pop up function
 def close_popup(driver):
     popup_button = driver.find_element(by=By.XPATH, value='//*[@id="onesignal-slidedown-cancel-button"]')
     popup_button.click()
 
 try:
     close_popup(driver)
+
 except ElementClickInterceptedException:
     close_popup(driver)
 
-# search bar
-search_bar = driver.find_element(by=By.XPATH, value='//*[@id="searchProduct"]')
-search_bar.click()
-driver.implicitly_wait(5)
-search = driver.find_element(by=By.XPATH, value='/html/body/div/div[1]/div[1]/div/div/header/div/div[2]/div/div/input')
-search.send_keys("sarung")
+except NoSuchElementException:
+    pass
 
-search_button = driver.find_element(by=By.XPATH, value='//*[@id="searchProduct"]/div/div/div/button')
-search_button.click()
-# search_button.click()
-
-driver.implicitly_wait(10)
-
-# max_page = driver.find_element(by=By.XPATH, value='//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[41]/div/button[5]').text
-# max_page = int(max_page)
-
+# get maximum page
+max_page_xpath = '//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[41]/div/button[5]'
+max_result_page = driver.find_element(by=By.XPATH, value=max_page_xpath).text
+max_result_page = int(max_result_page)
 
 data = []
-for i in range(3):
+
+for i in range(2, max_result_page+1):
+    driver.implicitly_wait(10)
+
     results = driver.find_elements(by=By.XPATH, value='//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div')
-    print(len(results))
     for result in results:
         try:
             index = results.index(result)+1
-            # image_url = result.find_element(by=By.XPATH, value=f'//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[{index}]/div/a/img').get_attribute('href')
-            product_title = result.find_element(By.XPATH, value=f'//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[{index}]/div/a/div[2]/div[1]/p').text
-            price = result.find_element(by=By.XPATH, value=f'//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[{index}]/div/a/div[2]/div[2]/div[2]').text
-            print(product_title)
-            data.append([product_title, price])
+            xpath_url = f'//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[{index}]/div/a'
+            product_url = result.find_element(by=By.XPATH, value=xpath_url).get_attribute('href')
 
         except NoSuchElementException:
-            pass
+            product_url = ''
+        
+        data.append(product_url)
+    
+    url = url+page_param+str(i)
+    driver.get(url)
+    driver.implicitly_wait(10)
 
-    # next button
-    next = driver.find_element(by=By.XPATH, value='//*[@id="__next"]/div[4]/div[2]/div[2]/div[3]/div[2]/div[41]/div/button[6]')
-    driver.implicitly_wait(7)
+    # revert url back to its original state
+    url = base_url+keyword
 
-print(data)
+# convert list to dataframe
+df = pd.DataFrame(data, columns=['url'])
+
+# save to csv file
+df.to_csv(f'scrape-bhinneka-sarung-url.csv', index=False)
